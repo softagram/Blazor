@@ -27,6 +27,9 @@ namespace Microsoft.AspNetCore.Blazor.Test.Helpers
         public new int AssignRootComponentId(IComponent component)
             => base.AssignRootComponentId(component);
 
+        public new void RenderRootComponent(int componentId)
+            => base.RenderRootComponent(componentId);
+
         public new void DispatchEvent(int componentId, int eventHandlerId, UIEventArgs args)
             => base.DispatchEvent(componentId, eventHandlerId, args);
 
