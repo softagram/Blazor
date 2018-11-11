@@ -121,8 +121,11 @@ namespace Microsoft.AspNetCore.Blazor.Server.Circuits
                 await SynchronizationContext.Invoke(() =>
                 {
                     SetCurrentCircuitHost(this);
-                    
-                    DotNetDispatcher.BeginInvoke(callId, assemblyName, methodIdentifier, dotNetObjectId, argsJson);
+
+                    using (SynchronizationContext.ProhibitBlocking())
+                    {
+                        DotNetDispatcher.BeginInvoke(callId, assemblyName, methodIdentifier, dotNetObjectId, argsJson);
+                    }
                 });
             }
             catch (Exception ex)

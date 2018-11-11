@@ -31,10 +31,13 @@ namespace Microsoft.AspNetCore.Blazor.Server.Circuits
             : this(new State())
         {
         }
-
+        
         private CircuitSynchronizationContext(State state)
         {
             _state = state;
+
+            // Make sure that our Wait method gets called.
+            SetWaitNotificationRequired();
         }
 
         public Task Invoke(Action action)
@@ -236,6 +239,22 @@ namespace Microsoft.AspNetCore.Blazor.Server.Circuits
             }
         }
 
+        public NonBlockingScope ProhibitBlocking()
+        {
+            _state.ProhibitBlocking = true;
+            return new NonBlockingScope(_state);
+        }
+
+        public override int Wait(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout)
+        {
+            if (_state.ProhibitBlocking)
+            {
+                throw new InvalidOperationException("Attempting to block while performing a JS interop call is not allowed.");
+            }
+
+            return base.Wait(waitHandles, waitAll, millisecondsTimeout);
+        }
+
         private void DispatchException(Exception ex)
         {
             var handler = UnhandledException;
@@ -245,15 +264,31 @@ namespace Microsoft.AspNetCore.Blazor.Server.Circuits
             }
         }
 
-        private class State
+        public readonly struct NonBlockingScope : IDisposable
         {
+            private readonly State _state;
+
+            public NonBlockingScope(State state)
+            {
+                _state = state;
+            }
+
+            public void Dispose()
+            {
+                _state.ProhibitBlocking = false;
+            }
+        }
+
+        public class State
+        {
+            public bool ProhibitBlocking;
             public bool IsBusy; // Just for debugging
             public object Lock = new object();
             public Task Task = Task.CompletedTask;
 
             public override string ToString()
             {
-                return $"{{ Busy: {IsBusy}, Pending Task: {Task} }}";
+                return $"{{ Busy: {IsBusy}, ProhibitBlocking {ProhibitBlocking}, Pending Task: {Task} }}";
             }
         }
 

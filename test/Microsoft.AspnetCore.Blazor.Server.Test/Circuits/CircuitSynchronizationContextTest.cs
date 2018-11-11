@@ -406,6 +406,28 @@ namespace Microsoft.AspNetCore.Blazor.Server
         }
 
         [Fact]
+        public async Task Invoke_CannotBlockWhileProhibited()
+        {
+            // Arrange
+            var context = new CircuitSynchronizationContext();
+            var thread = Thread.CurrentThread;
+            Thread capturedThread = null;
+
+            // Act
+            var task = context.Invoke(() =>
+            {
+                using (context.ProhibitBlocking())
+                {
+                    Task.Delay(50).GetAwaiter().GetResult();
+                }
+            });
+
+            // Assert
+            await task;
+            Assert.Same(thread, capturedThread);
+        }
+
+        [Fact]
         public async Task Invoke_Void_CanRunAsynchronously_WhenBusy()
         {
             // Arrange
