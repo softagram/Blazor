@@ -161,31 +161,36 @@ namespace Microsoft.AspNetCore.Blazor.Components
                 // If you override OnInitAsync and return a nonnull task, then by default
                 // we automatically re-render once that task completes.
                 var initTask = OnInitAsync();
-                if (initTask != null && initTask.Status != TaskStatus.RanToCompletion)
-                {
-                    initTask.ContinueWith(ContinueAfterLifecycleTask);
-                }
+                ContinueAfterLifecycleTask(initTask);
             }
 
             OnParametersSet();
             var parametersTask = OnParametersSetAsync();
-            if (parametersTask != null && parametersTask.Status != TaskStatus.RanToCompletion)
-            {
-                parametersTask.ContinueWith(ContinueAfterLifecycleTask);
-            }
+            ContinueAfterLifecycleTask(parametersTask);
 
             StateHasChanged();
         }
 
-        private void ContinueAfterLifecycleTask(Task task)
+        private async void ContinueAfterLifecycleTask(Task task)
         {
-            if (task.Exception == null)
+            if (task != null)
             {
-                StateHasChanged();
-            }
-            else
-            {
-                HandleException(task.Exception);
+                var hasCompletedSynchronously = task.IsCompleted;
+                try
+                {
+                    await task;
+
+                    // When task has completed synchronously, no need to notify about state change.
+                    // Notification is done in caller method.
+                    if (!hasCompletedSynchronously)
+                    {
+                        StateHasChanged();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    HandleException(ex);
+                }
             }
         }
 
@@ -209,12 +214,7 @@ namespace Microsoft.AspNetCore.Blazor.Components
             // at the end of every event callback.
             StateHasChanged();
 
-            if (task.Status == TaskStatus.RanToCompletion)
-            {
-                return;
-            }
-
-            task.ContinueWith(ContinueAfterLifecycleTask);
+            ContinueAfterLifecycleTask(task);
         }
 
         void IHandleAfterRender.OnAfterRender()
